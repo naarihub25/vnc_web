@@ -1,0 +1,9 @@
+export const ink = "#123f43";
+export const muted = "#626b60";
+export const blue = "#0b5055";
+export const coral = "#a4472b";
+export const border = "#dce3d8";
+export const mint = "#e1ecdf";
+export const sky = "#edf4ef";
+export const peach = "#faf1df";
+export const lavender = "#f4e3df";
