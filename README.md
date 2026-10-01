@@ -14,12 +14,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ## Admin login API
 
 The `/admin` form posts `{ email, password }` to
-`http://localhost:3000/api/admin/login`. To use a different backend, set
-`NEXT_PUBLIC_API_BASE_URL` in `.env.local` and restart the frontend (rebuild for
+`http://localhost:4000/api/admin/login`. All API requests use
+`NEXT_PUBLIC_API_BASE_URL` from `.env`. To use a different backend, update it
+and restart the frontend (rebuild for
 production):
 
 ```dotenv
-NEXT_PUBLIC_API_BASE_URL=http://localhost:3000
+NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
 NEXT_PUBLIC_SITE_URL=https://your-production-domain.example
 # Optional fallback; the Razorpay order API normally returns data.razorpay.keyId.
 NEXT_PUBLIC_RAZORPAY_KEY_ID=rzp_test_your_public_key
@@ -48,7 +49,7 @@ existing `{ flag, data, error }` envelope and returns the finalized order with
 signature verification and payment capture entirely on the backend; only the
 public key ID belongs in `NEXT_PUBLIC_RAZORPAY_KEY_ID`.
 
-If the backend uses port 3000, run the frontend with `npm run dev -- --port 3001`.
+Run the backend on port 4000 and the frontend on port 3000.
 The backend must allow the frontend origin through CORS, including credentials.
 Login requests include cookies if the backend establishes a cookie session.
 

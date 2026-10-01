@@ -41,37 +41,37 @@ export default function CartPage() {
       <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 3 }}><Typography component="h1" variant="h4">Your Cart</Typography><Button component={Link} href="/">Continue shopping</Button></Stack>
       {error ? <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError("")}>{error}</Alert> : null}
       {!items.length ? <Paper variant="outlined" sx={{ p: 6, textAlign: "center" }}><Typography variant="h5">Your cart is empty</Typography><Typography color="text.secondary" sx={{ my: 2 }}>Find something vibrant and unique to bring home.</Typography><Button component={Link} href="/" variant="contained">Explore products</Button></Paper> :
-      <Grid container spacing={3}>
-        <Grid size={{ xs: 12, md: 8 }}><Stack spacing={2}>{items.map((item) => {
-          const key = cartItemKey(item);
-          const href = `${item.wholesale ? "/wholesale" : ""}/products/${encodeURIComponent(item.slug || item.id)}`;
-          return <Paper key={key} variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-              <Box component={Link} href={href} sx={{ flexShrink: 0 }}>{item.image ? <Box component="img" src={item.image} alt={item.name} sx={{ width: 120, height: 130, objectFit: "contain", bgcolor: "primary.light", borderRadius: 2 }} /> : null}</Box>
-              <Stack spacing={1.5} sx={{ flex: 1 }}>
-                <Typography component={Link} href={href} variant="h6">{item.name}</Typography>
-                <Box><Chip size="small" label={item.wholesale ? "Wholesale" : "Retail"} variant="outlined" /></Box>
-                <Typography color="text.secondary">{money(item.price, item.currency)} per unit</Typography>
-                {item.wholesale ? <Typography variant="caption">Minimum order: {item.minimum} units</Typography> : null}
-                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                  <IconButton aria-label={`Decrease quantity of ${item.name}`} disabled={item.quantity <= item.minimum} onClick={() => act(() => setCartQuantity(key, item.quantity - 1))}><RemoveIcon /></IconButton>
-                  <Typography aria-live="polite">{item.quantity}</Typography>
-                  <IconButton aria-label={`Increase quantity of ${item.name}`} disabled={item.quantity >= item.stock} onClick={() => act(() => setCartQuantity(key, item.quantity + 1))}><AddIcon /></IconButton>
-                  <Button color="secondary" startIcon={<DeleteOutlineIcon />} onClick={() => act(() => removeCartItem(key))}>Remove</Button>
+        <Grid container spacing={3}>
+          <Grid size={{ xs: 12, md: 8 }}><Stack spacing={2}>{items.map((item) => {
+            const key = cartItemKey(item);
+            const href = `${item.wholesale ? "/wholesale" : ""}/products/${encodeURIComponent(item.slug || item.id)}`;
+            return <Paper key={key} variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <Box component={Link} href={href} sx={{ flexShrink: 0 }}>{item.image ? <Box component="img" src={item.image} alt={item.name} sx={{ width: 120, height: 130, objectFit: "contain", bgcolor: "primary.light", borderRadius: 2 }} /> : null}</Box>
+                <Stack spacing={1.5} sx={{ flex: 1 }}>
+                  <Typography component={Link} href={href} variant="h6">{item.name}</Typography>
+                  <Box><Chip size="small" label={item.wholesale ? "Wholesale" : "Retail"} variant="outlined" /></Box>
+                  <Typography color="text.secondary">{money(item.price, item.currency)} per unit</Typography>
+                  {item.wholesale ? <Typography variant="caption">Minimum order: {item.minimum} units</Typography> : null}
+                  <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                    <IconButton aria-label={`Decrease quantity of ${item.name}`} disabled={item.quantity <= item.minimum} onClick={() => act(() => setCartQuantity(key, item.quantity - 1))}><RemoveIcon /></IconButton>
+                    <Typography aria-live="polite">{item.quantity}</Typography>
+                    <IconButton aria-label={`Increase quantity of ${item.name}`} disabled={item.quantity >= item.stock} onClick={() => act(() => setCartQuantity(key, item.quantity + 1))}><AddIcon /></IconButton>
+                    <Button color="secondary" startIcon={<DeleteOutlineIcon />} onClick={() => act(() => removeCartItem(key))}>Remove</Button>
+                  </Stack>
                 </Stack>
+                <Typography sx={{ fontWeight: 800 }}>{money(Math.round(item.price * 100) * item.quantity / 100, item.currency)}</Typography>
               </Stack>
-              <Typography sx={{ fontWeight: 800 }}>{money(Math.round(item.price * 100) * item.quantity / 100, item.currency)}</Typography>
-            </Stack>
-          </Paper>;
-        })}</Stack></Grid>
-        <Grid size={{ xs: 12, md: 4 }}><Paper variant="outlined" sx={{ p: 3, position: "sticky", top: 24 }}>
-          <Typography variant="h6">Order summary</Typography><Typography color="text.secondary" sx={{ my: 2 }}>{count} items</Typography><Divider />
-          {Object.entries(totals).map(([currency, cents]) => <Stack key={currency} direction="row" sx={{ justifyContent: "space-between", my: 2 }}><Typography>Subtotal ({currency})</Typography><Typography sx={{ fontWeight: 800 }}>{money(cents / 100, currency)}</Typography></Stack>)}
-          <Typography variant="body2" color="text.secondary">Shipping and final charges will be confirmed at checkout.</Typography>
-          <Button fullWidth disabled={!ready} variant="contained" sx={{ mt: 3 }} onClick={() => guest ? setReuseOpen(true) : setCheckoutOpen(true)}>Checkout</Button>
-          <Typography variant="caption" color="text.secondary">Continue as a guest. Your cart expires 5 minutes after your last cart change.</Typography>
-        </Paper></Grid>
-      </Grid>}
+            </Paper>;
+          })}</Stack></Grid>
+          <Grid size={{ xs: 12, md: 4 }}><Paper variant="outlined" sx={{ p: 3, position: "sticky", top: 24 }}>
+            <Typography variant="h6">Order summary</Typography><Typography color="text.secondary" sx={{ my: 2 }}>{count} items</Typography><Divider />
+            {Object.entries(totals).map(([currency, cents]) => <Stack key={currency} direction="row" sx={{ justifyContent: "space-between", my: 2 }}><Typography>Subtotal ({currency})</Typography><Typography sx={{ fontWeight: 800 }}>{money(cents / 100, currency)}</Typography></Stack>)}
+            <Typography variant="body2" color="text.secondary">Shipping and final charges will be confirmed at checkout.</Typography>
+            <Button fullWidth disabled={!ready} variant="contained" sx={{ mt: 3 }} onClick={() => guest ? setReuseOpen(true) : setCheckoutOpen(true)}>Checkout</Button>
+            <Typography variant="caption" color="text.secondary">Continue as a guest. Your cart expires 5 minutes after your last cart change.</Typography>
+          </Paper></Grid>
+        </Grid>}
     </Container>
     <AppDialog open={reuseOpen} onClose={() => setReuseOpen(false)} title="Use your saved details?"
       actions={<>
