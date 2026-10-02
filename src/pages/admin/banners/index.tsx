@@ -23,7 +23,6 @@ type Banner = {
   position: "carousal" | "offerBanner";
 };
 type BannerForm = Omit<Banner, "_id" | "sortOrder"> & { sortOrder: string };
-const newImage = (): BannerImage => ({ id: crypto.randomUUID(), url: "", alt: "" });
 const emptyForm = (): BannerForm => ({ sortOrder: "0", title: "", images: [], redirectUrl: "", isActive: true, position: "carousal" });
 const positions = { carousal: "Carousel", offerBanner: "Offer Banner" };
 function isHttpUrl(value: string) {
@@ -50,6 +49,10 @@ const bannersUrl = `${(process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost
 const pageSize = 20;
 
 export default function AdminBanners() {
+  // Image IDs only identify local form rows and are never sent to the API.
+  const imageIdSequence = useRef(0);
+  const nextImageId = () => `banner-image-${++imageIdSequence.current}`;
+  const newImage = (): BannerImage => ({ id: nextImageId(), url: "", alt: "" });
   const [banners, setBanners] = useState<Banner[]>([]);
   const [form, setForm] = useState<BannerForm>(emptyForm);
   const [editing, setEditing] = useState<Banner | null>(null);
@@ -97,7 +100,9 @@ export default function AdminBanners() {
     setError(""); setSuccess(""); setOpen(true);
   };
   const openEdit = (banner: Banner) => {
-    setEditing(banner); setForm({ ...banner, sortOrder: String(banner.sortOrder), images: banner.images.map((image) => ({ ...image, id: crypto.randomUUID() })) });
+    setEditing(banner); setForm({ ...banner, sortOrder: String(banner.sortOrder),
+      images: [banner.images[0] ? { ...banner.images[0], id: nextImageId() } : newImage()],
+    });
     setError(""); setSuccess(""); setOpen(true);
   };
   const closeModal = () => { if (submitting.current) return; setOpen(false); setForm(emptyForm()); setEditing(null); };
@@ -112,8 +117,8 @@ export default function AdminBanners() {
     const redirectUrl = form.redirectUrl.trim();
     if (!title) { setError("Enter a banner title."); return; }
     if (!validDestination(redirectUrl)) { setError("Enter a site path such as /products, or a full HTTP/HTTPS URL."); return; }
-    if (!form.images.length || form.images.some((image) => !image.file && !isHttpUrl(image.url.trim()))) {
-      setError("Add at least one image. Each image needs an uploaded file or a valid HTTP/HTTPS URL."); return;
+    if (form.images.length !== 1 || !isHttpUrl(form.images[0].url.trim())) {
+      setError("Provide exactly one banner image with a valid HTTP/HTTPS URL."); return;
     }
     const banner = { title, redirectUrl, sortOrder,
       position: form.position, isActive: form.isActive,
@@ -160,7 +165,7 @@ export default function AdminBanners() {
     finally { submitting.current = false; setDeleting(false); }
   };
   const columns: DataTableColumn<Banner>[] = [
-    { id: "images", label: "Images", render: (banner) => <Stack spacing={0.5}>
+    { id: "images", label: "Image", render: (banner) => <Stack spacing={0.5}>
       {banner.images[0] ? <BannerPreview image={banner.images[0]} title={banner.title} /> : null}<Typography variant="caption">{banner.images.length} image(s)</Typography>
     </Stack> },
     { id: "title", label: "Title", minWidth: 180, render: (banner) => banner.title },
@@ -210,10 +215,10 @@ export default function AdminBanners() {
         </Grid>
         <AppTextField label="Sort order" required type="number" value={form.sortOrder}
           slotProps={{ htmlInput: { min: 0, step: 1 } }} onChange={(e) => update("sortOrder", e.target.value)} />
-        <Typography variant="h6">Images</Typography>
-        {form.images.map((image, index) => <Paper key={image.id} variant="outlined" sx={{ p: 2 }}>
+        <Typography variant="h6">Banner image</Typography>
+        {editing && editing.images.length > 1 ? <Alert severity="info">This banner has multiple images. Saving will keep only the image shown below.</Alert> : null}
+        {form.images.map((image) => <Paper key={image.id} variant="outlined" sx={{ p: 2 }}>
           <Stack spacing={2}>
-            <Typography variant="subtitle2">Image {index + 1}</Typography>
             <AppTextField label="Image URL" value={image.url} onChange={(e) => updateImage(image.id, { url: e.target.value, file: undefined })}
               helperText="Enter an HTTP/HTTPS URL or choose an image file below." />
             <AppTextField label="Alt text" value={image.alt} onChange={(e) => updateImage(image.id, { alt: e.target.value })} />
@@ -228,13 +233,12 @@ export default function AdminBanners() {
                   setError(""); updateImage(image.id, { file, url: "", alt: "" });
                 }} />
               </Button>
-              <Button color="error" onClick={() => update("images", form.images.filter((item) => item.id !== image.id))}>Remove</Button>
+              <Button color="error" onClick={() => update("images", [newImage()])}>Remove</Button>
             </Stack>
             {image.file ? <Typography variant="caption">{image.file.name}</Typography> : null}
             <BannerPreview image={image} title={form.title} />
           </Stack>
         </Paper>)}
-        <Button variant="outlined" onClick={() => update("images", [...form.images, newImage()])}>Add image</Button>
         <Typography variant="caption" color="text.secondary">Files preview locally. Use image URLs to save banners; permanent file uploads need an upload endpoint.</Typography>
       </Stack>
       </Box>

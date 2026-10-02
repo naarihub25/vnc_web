@@ -225,10 +225,6 @@ export default function AdminCategories() {
   const saveCategory = async () => {
     if (submitting.current) return;
     setError("");
-    if (selectedImage) {
-      setError("This image is only a local preview. Enter its HTTP/HTTPS URL or remove it before saving; file uploads are not connected yet.");
-      return;
-    }
     if (!form.name.trim()) {
       setError("Category name is required.");
       return;
@@ -237,7 +233,7 @@ export default function AdminCategories() {
     const name = form.name.trim();
     const slug = form.slug.trim().toLowerCase() || (editingCategory ? "" : slugify(name));
     const description = form.description.trim();
-    const imageUrl = form.imageUrl.trim();
+    let imageUrl = form.imageUrl.trim();
     const sortOrder = Number(form.sortOrder);
     if (name.length > 100) { setError("Name must be 100 characters or fewer."); return; }
     if (slug.length > 120 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
@@ -259,6 +255,30 @@ export default function AdminCategories() {
     submitting.current = true;
     setSaving(true);
     try {
+      if (selectedImage) {
+        const signingResponse = await fetch("/api/uploads/category-image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contentType: selectedImage.type, fileSize: selectedImage.size }),
+        });
+        const signingResult = await signingResponse.json().catch(() => null);
+        if (!signingResponse.ok || typeof signingResult?.uploadUrl !== "string" || typeof signingResult?.imageUrl !== "string") {
+          setError(typeof signingResult?.error === "string" ? signingResult.error : "Unable to prepare the image upload.");
+          return;
+        }
+        const uploadResponse = await fetch(signingResult.uploadUrl, {
+          method: "PUT",
+          headers: { "Content-Type": selectedImage.type },
+          body: selectedImage,
+        });
+        if (!uploadResponse.ok) {
+          setError("Unable to upload the image to storage. Please try again.");
+          return;
+        }
+        imageUrl = signingResult.imageUrl;
+        setSelectedImage(null);
+        updateForm("imageUrl", imageUrl);
+      }
       const response = await fetch(editingCategory ? `${categoriesUrl}/${encodeURIComponent(editingCategory._id)}` : categoriesUrl, {
         method: editingCategory ? "PATCH" : "POST", credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -526,7 +546,7 @@ export default function AdminCategories() {
                 {selectedImage || form.imageUrl ? <Button onClick={() => { setSelectedImage(null); updateForm("imageUrl", ""); }}>Remove image</Button> : null}
               </Stack>
               <Typography variant="caption" color="text.secondary">
-                PNG, JPEG, WebP or GIF, up to 5 MB. File preview only until image uploads are connected.
+                PNG, JPEG, WebP or GIF, up to 5 MB. The image uploads when you save the category.
               </Typography>
               {selectedImage ? <Typography variant="body2">{selectedImage.name}</Typography> : null}
               <CategoryImage file={selectedImage} url={form.imageUrl} name={form.name || "Category"} />
