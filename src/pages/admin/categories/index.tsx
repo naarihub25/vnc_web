@@ -256,25 +256,17 @@ export default function AdminCategories() {
     setSaving(true);
     try {
       if (selectedImage) {
-        const signingResponse = await fetch(`${categoriesUrl}/image-upload-url`, {
+        const uploadForm = new FormData();
+        uploadForm.append("file", selectedImage);
+        const uploadResponse = await fetch(`${categoriesUrl}/image-upload-url`, {
           method: "POST",
           credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contentType: selectedImage.type, fileSize: selectedImage.size }),
+          body: uploadForm,
         });
-        const signingResult = await signingResponse.json().catch(() => null);
-        const upload = signingResult?.data ?? signingResult;
-        if (!signingResponse.ok || signingResult?.flag === false || typeof upload?.uploadUrl !== "string" || !upload.uploadUrl || typeof upload?.imageUrl !== "string" || !upload.imageUrl) {
-          setError(typeof signingResult?.error === "string" ? signingResult.error : "Unable to prepare the image upload.");
-          return;
-        }
-        const uploadResponse = await fetch(upload.uploadUrl, {
-          method: "PUT",
-          headers: { "Content-Type": selectedImage.type },
-          body: selectedImage,
-        });
-        if (!uploadResponse.ok) {
-          setError("Unable to upload the image to storage. Please try again.");
+        const uploadResult = await uploadResponse.json().catch(() => null);
+        const upload = uploadResult?.data ?? uploadResult;
+        if (!uploadResponse.ok || uploadResult?.flag === false || typeof upload?.imageUrl !== "string" || !upload.imageUrl.trim()) {
+          setError(typeof uploadResult?.error === "string" ? uploadResult.error : "Unable to upload the image. Please try again.");
           return;
         }
         imageUrl = upload.imageUrl;
