@@ -1,3 +1,4 @@
+import { GuestCheckoutDialog } from "./GuestCheckoutDialog";
 import { addToCart } from "@/hooks/useCart";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -59,6 +60,7 @@ function ProductDetails({ identifier, wholesale }: { identifier: string; wholesa
   const [selected, setSelected] = useState(0);
   const [quantity, setQuantity] = useState<number | null>(null);
   const [zoom, setZoom] = useState(false);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [cartMessage, setCartMessage] = useState("");
   const [cartError, setCartError] = useState("");
   const [tab, setTab] = useState(0);
@@ -99,6 +101,20 @@ function ProductDetails({ identifier, wholesale }: { identifier: string; wholesa
   const minimum = wholesale ? product.minWholesaleQty ?? 1 : 1;
   const qty = quantity ?? minimum;
   const available = product.stockQuantity >= minimum;
+  const purchaseDisabled = !available || typeof (wholesale ? product.wholesalePrice : product.retailPrice) !== "number";
+  const addProduct = (buyNow = false) => {
+    try {
+      addToCart({ id: product._id, slug: product.slug, name: product.name, image: product.images[0]?.url ?? "",
+        price: (wholesale ? product.wholesalePrice : product.retailPrice)!, currency: product.currency,
+        wholesale, quantity: qty, minimum, stock: product.stockQuantity });
+      setCartError("");
+      setCartMessage(buyNow ? "" : `${qty} item(s) added to your cart.`);
+      if (buyNow) setCheckoutOpen(true);
+    } catch (cause) {
+      setCartMessage("");
+      setCartError(cause instanceof Error ? cause.message : "Unable to add to cart.");
+    }
+  };
   const related = products.filter((item) => item._id !== product._id && categoryId(item) === categoryId(product)).slice(0, 4);
   return <Container component="main" maxWidth="xl" sx={{ py: { xs: 3, md: 4 } }}>
     <Seo
@@ -160,17 +176,13 @@ function ProductDetails({ identifier, wholesale }: { identifier: string; wholesa
               <IconButton aria-label="Increase quantity" disabled={!available || qty >= product.stockQuantity} onClick={() => setQuantity(qty + 1)}><AddIcon /></IconButton>
             </Paper>
           </Stack>
-          <Stack direction="row" spacing={2}><Button disabled={!available || typeof (wholesale ? product.wholesalePrice : product.retailPrice) !== "number"} variant="contained" size="large" fullWidth onClick={() => {
-            try {
-              addToCart({ id: product._id, slug: product.slug, name: product.name, image: product.images[0]?.url ?? "",
-                price: (wholesale ? product.wholesalePrice : product.retailPrice)!, currency: product.currency,
-                wholesale, quantity: qty, minimum, stock: product.stockQuantity });
-              setCartError(""); setCartMessage(`${qty} item(s) added to your cart.`);
-            } catch (cause) { setCartMessage(""); setCartError(cause instanceof Error ? cause.message : "Unable to add to cart."); }
-          }}>Add to Cart</Button><Button disabled variant="outlined" size="large" fullWidth>Buy Now</Button></Stack>
+          <Stack direction="row" spacing={2}>
+            <Button disabled={purchaseDisabled} variant="contained" size="large" fullWidth onClick={() => addProduct()}>Add to Cart</Button>
+            <Button disabled={purchaseDisabled} variant="outlined" size="large" fullWidth onClick={() => addProduct(true)}>Buy Now</Button>
+          </Stack>
           {cartMessage ? <Alert severity="success" action={<Button component={Link} href="/cart" color="inherit">View cart</Button>}>{cartMessage}</Alert> : null}
           {cartError ? <Alert severity="error">{cartError}</Alert> : null}
-          <Typography variant="caption" color="text.secondary">Your cart expires 5 minutes after your last cart change. Checkout will be available soon.</Typography>
+          <Typography variant="caption" color="text.secondary">Your cart expires 5 minutes after your last cart change.</Typography>
           {!wholesale && product.isWholesale ? <Paper variant="outlined" sx={{ p: 2, bgcolor: "primary.light" }}><Typography sx={{ fontWeight: 700 }}>Buying in bulk?</Typography><Button component={Link} href={`/wholesale/products/${encodeURIComponent(product.slug)}`}>View wholesale pricing</Button></Paper> : null}
           {wholesale && product.isRetail ? <Button component={Link} href={`/products/${encodeURIComponent(product.slug)}`}>Shop this product at retail price</Button> : null}
         </Stack>
@@ -185,6 +197,7 @@ function ProductDetails({ identifier, wholesale }: { identifier: string; wholesa
       </Paper>
     </Box>
     {related.length ? <Box sx={{ mt: 5 }}><Typography variant="h5" sx={{ mb: 3 }}>You may also like</Typography><Grid container spacing={3}>{related.map((item) => <Grid key={item._id} size={{ xs: 12, sm: 6, md: 3 }}><ProductCard product={{ id: item._id, slug: item.slug, href: `${wholesale ? "/wholesale" : ""}/products/${encodeURIComponent(item.slug)}`, title: item.name, description: item.description || item.productType, images: item.images, icon: "🛍️", imageColor: "#edf4ef", price: price(item, wholesale), originalPrice: "", discount: "" }} /></Grid>)}</Grid></Box> : null}
+    {checkoutOpen ? <GuestCheckoutDialog open onClose={() => setCheckoutOpen(false)} /> : null}
     <Dialog open={zoom} onClose={() => setZoom(false)} maxWidth="lg" fullWidth><DialogTitle>{product.name}<Button onClick={() => setZoom(false)} sx={{ float: "right" }}>Close</Button></DialogTitle><DialogContent>{image ? <Box component="img" src={image.url} alt={image.alt || product.name} sx={{ width: "100%", maxHeight: "75vh", objectFit: "contain" }} /> : null}</DialogContent></Dialog>
   </Container>;
 }

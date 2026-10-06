@@ -28,7 +28,7 @@ export function CategoryNavigation({ wholesale = false, mobileOpen, onMobileClos
       {roots.map((category) => <Button key={category._id} color="inherit" endIcon={<ExpandMoreIcon />}
         aria-haspopup="menu" aria-expanded={selected === category._id && Boolean(anchor)}
         aria-controls={selected === category._id && anchor ? id : undefined}
-        sx={{ flexShrink: 0 }} onClick={(event) => { setSelected(category._id); setAnchor(event.currentTarget); }}>
+        sx={{ flexShrink: 0, fontSize: 16 }} onClick={(event) => { setSelected(category._id); setAnchor(event.currentTarget); }}>
         {category.name}
       </Button>)}
     </Stack>
@@ -43,8 +43,8 @@ export function CategoryNavigation({ wholesale = false, mobileOpen, onMobileClos
         <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}><Typography variant="h6">Categories</Typography><Button onClick={onMobileClose}>Close</Button></Stack>
         {status}
         {roots.map((category) => <Box key={category._id} sx={{ py: 1, borderBottom: 1, borderColor: "divider" }}>
-          <Button fullWidth component={Link} href={categoryHref(category, wholesale)} onClick={onMobileClose} sx={{ justifyContent: "flex-start", fontWeight: 700 }}>{category.name}</Button>
-          {categories.filter((child) => parentId(child) === category._id).map((child) => <Button fullWidth key={child._id} component={Link} href={categoryHref(child, wholesale)} onClick={onMobileClose} color="inherit" sx={{ justifyContent: "flex-start", pl: 3 }}>{child.name}</Button>)}
+          <Button fullWidth component={Link} href={categoryHref(category, wholesale)} onClick={onMobileClose} sx={{ justifyContent: "flex-start", fontWeight: 700, fontSize: 16 }}>{category.name}</Button>
+          {categories.filter((child) => parentId(child) === category._id).map((child) => <Button fullWidth key={child._id} component={Link} href={categoryHref(child, wholesale)} onClick={onMobileClose} color="inherit" sx={{ justifyContent: "flex-start", pl: 3, fontSize: 16 }}>{child.name}</Button>)}
         </Box>)}
       </Box>
     </Drawer>

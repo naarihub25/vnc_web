@@ -15,15 +15,18 @@ import { ActionIconButtons, AdminLayout, AppCheckbox, AppDialog, AppTextField, D
 type ProductImage = { url: string; alt: string };
 type Product = {
   _id: string; name: string; slug: string; sku: string; category: string;
+  hsnCode?: string; cgst?: number; sgst?: number;
   productType: string; description: string; images: ProductImage[]; currency: string;
   isRetail: boolean; retailPrice?: number; isWholesale: boolean; wholesalePrice?: number;
   minWholesaleQty?: number; stockQuantity: number; isActive: boolean; isTrending: boolean; isRecommended: boolean;
 };
-type ProductForm = Omit<Product, "_id" | "retailPrice" | "wholesalePrice" | "minWholesaleQty" | "stockQuantity"> & {
+type ProductForm = Omit<Product, "_id" | "hsnCode" | "cgst" | "sgst" | "retailPrice" | "wholesalePrice" | "minWholesaleQty" | "stockQuantity"> & {
+  hsnCode: string; cgst: string; sgst: string;
   retailPrice: string; wholesalePrice: string; minWholesaleQty: string; stockQuantity: string;
 };
 type CategoryOption = { _id: string; name: string; parentCategory: string | null };
 const emptyForm = (): ProductForm => ({
+  hsnCode: "", cgst: "0", sgst: "0",
   name: "", slug: "", sku: "", category: "", productType: "", description: "",
   images: [{ url: "", alt: "" }], currency: "INR", isRetail: true, retailPrice: "",
   isWholesale: false, wholesalePrice: "", minWholesaleQty: "", stockQuantity: "0", isActive: true, isTrending: false, isRecommended: false,
@@ -139,6 +142,9 @@ export default function AdminProducts() {
     setEditing(product);
     setForm({
       ...product,
+      hsnCode: product.hsnCode ?? "",
+      cgst: product.cgst?.toString() ?? "0",
+      sgst: product.sgst?.toString() ?? "0",
       images: product.images.map((image) => ({ ...image })),
       retailPrice: product.retailPrice?.toString() ?? "",
       wholesalePrice: product.wholesalePrice?.toString() ?? "",
@@ -155,6 +161,7 @@ export default function AdminProducts() {
     setError("");
     const name = form.name.trim();
     const slug = form.slug.trim().toLowerCase() || (editing ? "" : slugify(name));
+    const hsnCode = form.hsnCode.trim();
     const sku = form.sku.trim().toUpperCase();
     const productType = form.productType.trim();
     const description = form.description.trim();
@@ -165,6 +172,9 @@ export default function AdminProducts() {
     else if (slug.length > 240 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) message = "Enter a slug of up to 240 characters using lowercase letters, numbers and single hyphens.";
     else if (!sku || sku.length > 100) message = "Enter a SKU of up to 100 characters.";
     else if (products.some((p) => p._id !== editing?._id && (p.slug === slug || p.sku === sku))) message = "Another product already uses this slug or SKU.";
+    else if (!/^(?:[0-9]{2}|[0-9]{4}|[0-9]{6}|[0-9]{8})?$/.test(hsnCode)) message = "HSN code must be empty or contain 2, 4, 6 or 8 digits.";
+    else if (!validPrice(form.cgst) || Number(form.cgst) > 100) message = "CGST must be between 0 and 100 with at most two decimal places.";
+    else if (!validPrice(form.sgst) || Number(form.sgst) > 100) message = "SGST must be between 0 and 100 with at most two decimal places.";
     else if (!categories.some((c) => c._id === form.category)) message = "Select one category or subcategory.";
     else if (!productType || productType.length > 100) message = "Enter a product type of up to 100 characters.";
     else if (description.length > 10000) message = "Description must be 10,000 characters or fewer.";
@@ -177,6 +187,7 @@ export default function AdminProducts() {
     else if (!validInteger(form.stockQuantity, 0)) message = "Stock quantity must be a whole number from 0 to 1,000,000,000.";
     if (message) { setError(message); return; }
     const product: Omit<Product, "_id"> = {
+      hsnCode, cgst: Number(form.cgst), sgst: Number(form.sgst),
       name, slug, sku, category: form.category,
       productType, description, images, currency, isRetail: form.isRetail, isWholesale: form.isWholesale,
       ...(form.retailPrice.trim() !== "" ? { retailPrice: Number(form.retailPrice) } : {}),
@@ -250,6 +261,9 @@ export default function AdminProducts() {
     { id: "image", label: "Image", render: (p) => <Box component="img" src={p.images[0].url} alt={p.images[0].alt || p.name} sx={{ width: 64, height: 64, objectFit: "cover", borderRadius: 1 }} /> },
     { id: "name", label: "Product", minWidth: 180, render: (p) => <><Typography variant="body2">{p.name}</Typography><Typography variant="caption" color="text.secondary">{p.slug}</Typography></> },
     { id: "sku", label: "SKU", render: (p) => p.sku },
+    { id: "hsnCode", label: "HSN code", render: (p) => p.hsnCode || "—" },
+    { id: "cgst", label: "CGST", render: (p) => `${p.cgst ?? 0}%` },
+    { id: "sgst", label: "SGST", render: (p) => `${p.sgst ?? 0}%` },
     { id: "category", label: "Category", render: (p) => categories.find((c) => c._id === p.category)?.name ?? p.category },
     { id: "type", label: "Type", render: (p) => p.productType },
     { id: "retail", label: "Retail", render: (p) => p.isRetail ? `${p.currency} ${p.retailPrice?.toFixed(2)}` : "—" },
@@ -262,14 +276,14 @@ export default function AdminProducts() {
       {!p.isRecommended && !p.isTrending ? "—" : null}
     </Stack> },
   ];
-  const textField = (key: "name" | "slug" | "sku" | "productType" | "currency", label: string, maxLength: number, required = true) => (
+  const textField = (key: "hsnCode" | "name" | "slug" | "sku" | "productType" | "currency", label: string, maxLength: number, required = true) => (
     <Grid size={{ xs: 12, md: 6 }}><AppTextField label={label} required={required} value={form[key]}
       slotProps={{ htmlInput: { maxLength } }} onChange={(e) => update(key, e.target.value)}
       helperText={key === "slug" ? (editing ? "Changing the name keeps the existing slug." : "Leave blank to generate from the name.") : key === "sku" || key === "currency" ? "Saved in uppercase." : undefined} /></Grid>
   );
-  const numberField = (key: "retailPrice" | "wholesalePrice" | "minWholesaleQty" | "stockQuantity", label: string, min = 0, step = 1) => (
+  const numberField = (key: "cgst" | "sgst" | "retailPrice" | "wholesalePrice" | "minWholesaleQty" | "stockQuantity", label: string, min = 0, step = 1, max = 1000000000) => (
     <Grid size={{ xs: 12, md: 6 }}><AppTextField label={label} required type="number" value={form[key]}
-      slotProps={{ htmlInput: { min, max: 1000000000, step } }} onChange={(e) => update(key, e.target.value)} /></Grid>
+      slotProps={{ htmlInput: { min, max, step } }} onChange={(e) => update(key, e.target.value)} /></Grid>
   );
 
   return <>
@@ -333,6 +347,12 @@ export default function AdminProducts() {
           </Paper>)}
           <Button variant="outlined" disabled={form.images.length >= 5} onClick={() => update("images", [...form.images, { url: "", alt: "" }])}>Add image ({form.images.length}/5)</Button>
         </Stack>
+        <Typography variant="h6">Tax details</Typography>
+        <Grid container spacing={2}>
+          {textField("hsnCode", "HSN code", 8, false)}
+          {numberField("cgst", "CGST (%)", 0, 0.01, 100)}
+          {numberField("sgst", "SGST (%)", 0, 0.01, 100)}
+        </Grid>
         <Typography variant="h6">Pricing and availability</Typography>
         <Grid container spacing={2}>
           {textField("currency", "Currency", 3)}{numberField("stockQuantity", "Stock quantity")}
