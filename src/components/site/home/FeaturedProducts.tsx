@@ -12,11 +12,13 @@ type Product = {
   images: { url: string; alt: string }[]; currency: string; retailPrice: number;
   isActive: boolean; isRetail: boolean; isTrending: boolean; isRecommended: boolean;
 };
-export function FeaturedProducts({ filter, title }: {
+export function FeaturedProducts({ filter, title, fullPage = false }: {
   filter: "isTrending" | "isRecommended";
   title: string;
+  fullPage?: boolean;
 }) {
   const label = filter === "isTrending" ? "trending" : "recommended";
+  const actionHref = fullPage ? undefined : `/${filter === "isTrending" ? "trending" : "recommended"}`;
   const [products, setProducts] = useState<ProductCardData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -57,10 +59,10 @@ export function FeaturedProducts({ filter, title }: {
     return () => controller.abort();
   }, [retry, filter, label]);
   if (loading || error || !products.length) return <Container maxWidth="xl" sx={{ py: { xs: 3, md: 4 } }}>
-    <SectionHeader title={title} />
+    <SectionHeader title={title} actionHref={actionHref} headingComponent={fullPage ? "h1" : "h2"} />
     {loading ? <Typography role="status">Loading {label} products...</Typography> : error ?
       <Alert severity="error" action={<Button color="inherit" onClick={() => setRetry((value) => value + 1)}>Retry</Button>}>{error}</Alert> :
       <Typography color="text.secondary">No {label} products available right now.</Typography>}
   </Container>;
-  return <ProductSectionTray section={{ title, products }} />;
+  return <ProductSectionTray section={{ title, products }} actionHref={actionHref} fullPage={fullPage} />;
 }

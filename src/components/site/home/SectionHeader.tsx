@@ -1,3 +1,4 @@
+import Link from "next/link";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import Button from "@mui/material/Button";
 import Stack from "@mui/material/Stack";
@@ -7,9 +8,13 @@ import { blue, ink } from "./toyNestTokens";
 export function SectionHeader({
   title,
   actionLabel = "View All",
+  actionHref,
+  headingComponent = "h2",
 }: {
   title: string;
   actionLabel?: string;
+  actionHref?: string;
+  headingComponent?: "h1" | "h2";
 }) {
   return (
     <Stack
@@ -17,18 +22,19 @@ export function SectionHeader({
       sx={{ alignItems: "center", justifyContent: "space-between", mb: 2.5 }}
     >
       <Typography
-        component="h2"
+        component={headingComponent}
         sx={{ color: ink, fontSize: { xs: 24, md: 28 }, fontWeight: 800 }}
       >
         {title}
       </Typography>
-      <Button
+      {actionHref ? <Button
+        component={Link}
         endIcon={<ArrowForwardIcon />}
-        href="#"
+        href={actionHref}
         sx={{ color: blue, fontSize: 14, minWidth: "auto" }}
       >
         {actionLabel}
-      </Button>
+      </Button> : null}
     </Stack>
   );
 }

@@ -10,20 +10,23 @@ import type { CategoryCardData } from "./types";
 
 export function CategorySelection({
   items,
+  fullPage = false,
 }: {
   items?: CategoryCardData[];
+  fullPage?: boolean;
 }) {
-  const { roots, loading, error, retry } = useStoreCategories();
-  const displayItems = items ?? roots.map((category) => ({
+  const { categories, roots, loading, error, retry } = useStoreCategories();
+  const listing = fullPage ? categories : roots;
+  const displayItems = items ?? listing.map((category) => ({
     title: category.name, icon: "🛍️", color: "#edf4ef", imageUrl: category.imageUrl,
     href: categoryHref(category),
   }));
   return (
     <Container maxWidth="xl" sx={{ py: { xs: 4, md: 5 } }}>
-      <SectionHeader title="Shop by Category" />
+      <SectionHeader title={fullPage ? "All Categories" : "Shop by Category"} actionHref={fullPage ? undefined : "/categories"} headingComponent={fullPage ? "h1" : "h2"} />
       {!items && loading ? <Typography role="status">Loading categories...</Typography> : null}
       {!items && error ? <Alert severity="error" action={<Button color="inherit" onClick={() => void retry()}>Retry</Button>}>{error}</Alert> : null}
-      {!items && !loading && !error && !roots.length ? <Typography>No categories available yet.</Typography> : null}
+      {!items && !loading && !error && !listing.length ? <Typography>No categories available yet.</Typography> : null}
       <Grid container spacing={2}>
         {displayItems.map((category) => (
           <Grid key={category.href ?? category.title} size={{ xs: 6, sm: 4, md: 3, lg: 1.5 }}>

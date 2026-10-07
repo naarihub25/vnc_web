@@ -2,6 +2,8 @@ import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Chip from "@mui/material/Chip";
+import Grid from "@mui/material/Grid";
+import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
 import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
@@ -28,6 +30,8 @@ type Order = {
   logistics?: LogisticsDetails;
 };
 type OrderAction = "approve" | "ship" | "deliver" | "reject" | "cancel";
+const emptyFilters = { q: "", status: "", paymentMethod: "", paymentStatus: "", fromDate: "", toDate: "", sortBy: "createdAt", sortOrder: "desc" };
+type OrderFilters = typeof emptyFilters;
 const money = (amount: number, currency: string) => {
   try { return new Intl.NumberFormat("en-IN", { style: "currency", currency }).format(amount); }
   catch { return `${currency} ${amount.toFixed(2)}`; }
@@ -37,6 +41,10 @@ function Status({ value }: { value: string }) {
     color={value === "shipped" || value === "delivered" || value === "paid" ? "success" : value === "approved" ? "primary" : value === "cancelled" || value === "rejected" || value === "failed" ? "error" : "warning"} />;
 }
 export default function AdminOrders() {
+  const [draftFilters, setDraftFilters] = useState<OrderFilters>(emptyFilters);
+  const [filters, setFilters] = useState<OrderFilters>(emptyFilters);
+  const [filterError, setFilterError] = useState("");
+  const updateFilter = (key: keyof OrderFilters, value: string) => setDraftFilters((current) => ({ ...current, [key]: value }));
   const [orders, setOrders] = useState<Order[]>([]);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -59,7 +67,9 @@ export default function AdminOrders() {
       setLoading(true); setError("");
       try {
         const base = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3000").replace(/\/$/, "");
-        const response = await fetch(`${base}/api/orders?page=${page}&limit=20`, { credentials: "include", cache: "no-store", signal: controller.signal });
+        const query = new URLSearchParams({ page: String(page), limit: "20" });
+        for (const [key, value] of Object.entries(filters)) if (value) query.set(key, value);
+        const response = await fetch(`${base}/api/orders?${query}`, { credentials: "include", cache: "no-store", signal: controller.signal });
         const result = await response.json();
         if (!response.ok || result?.flag === false) throw new Error(typeof result?.error === "string" ? result.error : "Unable to load orders.");
         if (!Array.isArray(result?.orders) || typeof result.total !== "number") throw new Error("Unexpected orders response.");
@@ -71,7 +81,7 @@ export default function AdminOrders() {
       finally { if (!controller.signal.aborted) setLoading(false); }
     }
     void load(); return () => controller.abort();
-  }, [page, refresh]);
+  }, [page, refresh, filters]);
   const openAction = (type: OrderAction, order: Order) => {
     setAction({ type, order });
     setReason("");
@@ -216,11 +226,54 @@ export default function AdminOrders() {
     <Seo title="Orders | VnU Admin" titleSuffix={false} description="Review and fulfil VnU customer orders." canonicalPath="/admin/orders" noIndex />
     <AdminLayout title="Orders" subtitle="Review customer orders, payment and fulfilment status.">
       <Paper variant="outlined" sx={{ p: { xs: 2, md: 3 } }}>
+        <Box component="form" sx={{ mb: 3 }} onSubmit={(event) => {
+          event.preventDefault();
+          if (draftFilters.fromDate && draftFilters.toDate && draftFilters.fromDate > draftFilters.toDate) {
+            setFilterError("From date must be on or before to date."); return;
+          }
+          const q = draftFilters.q.trim();
+          if (q.length > 100 || /[\u0000-\u001f\u007f]/.test(q)) { setFilterError("Search must be up to 100 characters without control characters."); return; }
+          setFilterError(""); setLoading(true); setPage(1); setFilters({ ...draftFilters, q });
+        }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>Filter orders</Typography>
+          <Grid container spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }}><AppTextField label="Search orders" value={draftFilters.q}
+              helperText="Customer name, email, phone or full order ID." slotProps={{ htmlInput: { maxLength: 100 } }}
+              onChange={(event) => updateFilter("q", event.target.value)} /></Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}><AppTextField select label="Order status" value={draftFilters.status} onChange={(event) => updateFilter("status", event.target.value)}>
+              <MenuItem value="">All statuses</MenuItem>
+              {["pending", "approved", "shipped", "delivered", "returned", "cancelled"].map((value) => <MenuItem key={value} value={value} sx={{ textTransform: "capitalize" }}>{value}</MenuItem>)}
+            </AppTextField></Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}><AppTextField select label="Payment method" value={draftFilters.paymentMethod} onChange={(event) => updateFilter("paymentMethod", event.target.value)}>
+              <MenuItem value="">All methods</MenuItem><MenuItem value="cod">Cash on delivery</MenuItem><MenuItem value="online">Online</MenuItem>
+            </AppTextField></Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}><AppTextField select label="Payment status" value={draftFilters.paymentStatus} onChange={(event) => updateFilter("paymentStatus", event.target.value)}>
+              <MenuItem value="">All payment statuses</MenuItem>
+              {["pending", "paid", "failed", "cancelled", "refunded"].map((value) => <MenuItem key={value} value={value} sx={{ textTransform: "capitalize" }}>{value}</MenuItem>)}
+            </AppTextField></Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}><AppTextField label="From date" type="date" value={draftFilters.fromDate}
+              slotProps={{ inputLabel: { shrink: true }, htmlInput: { max: draftFilters.toDate || undefined } }} onChange={(event) => updateFilter("fromDate", event.target.value)} /></Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}><AppTextField label="To date" type="date" value={draftFilters.toDate}
+              slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: draftFilters.fromDate || undefined } }} onChange={(event) => updateFilter("toDate", event.target.value)} /></Grid>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}><AppTextField select label="Sort by" value={`${draftFilters.sortBy}:${draftFilters.sortOrder}`} onChange={(event) => {
+              const [sortBy, sortOrder] = event.target.value.split(":"); setDraftFilters((current) => ({ ...current, sortBy, sortOrder }));
+            }}>
+              <MenuItem value="createdAt:desc">Newest first</MenuItem><MenuItem value="createdAt:asc">Oldest first</MenuItem>
+              <MenuItem value="subtotal:desc">Subtotal: high to low</MenuItem><MenuItem value="subtotal:asc">Subtotal: low to high</MenuItem>
+            </AppTextField></Grid>
+          </Grid>
+          <Typography variant="caption" color="text.secondary">Dates filter when orders were placed, using UTC.</Typography>
+          {filterError ? <Alert severity="error" sx={{ mt: 2 }}>{filterError}</Alert> : null}
+          <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
+            <Button type="submit" variant="contained" disabled={loading}>Apply filters</Button>
+            <Button disabled={loading} onClick={() => { setDraftFilters(emptyFilters); setFilters({ ...emptyFilters }); setFilterError(""); setPage(1); setLoading(true); }}>Clear filters</Button>
+          </Stack>
+        </Box>
         <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center", mb: 2 }}><Typography color="text.secondary">{total} orders</Typography><Button disabled={loading} onClick={() => { setLoading(true); setRefresh((value) => value + 1); }}>Refresh</Button></Stack>
         {error ? <Alert severity="error" sx={{ mb: 2 }} action={<Button color="inherit" onClick={() => { setLoading(true); setRefresh((value) => value + 1); }}>Retry</Button>}>{error}</Alert> : null}
         {notice ? <Alert severity="success" sx={{ mb: 2 }} onClose={() => setNotice("")}>{notice}</Alert> : null}
         {invoiceError ? <Alert severity="error" sx={{ mb: 2 }} onClose={() => setInvoiceError("")}>{invoiceError}</Alert> : null}
-        <DataTable rows={loading || error ? [] : orders} columns={columns} getRowKey={(order) => order._id} emptyMessage={loading ? "Loading orders..." : error ? "Order list unavailable." : "No orders yet."} />
+        <DataTable rows={loading || error ? [] : orders} columns={columns} getRowKey={(order) => order._id} emptyMessage={loading ? "Loading orders..." : error ? "Order list unavailable." : "No orders match the selected filters."} />
         <Stack direction="row" spacing={2} sx={{ mt: 2, justifyContent: "flex-end", alignItems: "center" }}>
           <Button disabled={loading || page <= 1} onClick={() => { setLoading(true); setPage((value) => value - 1); }}>Previous</Button>
           <Typography variant="body2">Page {page} of {pages}</Typography>
