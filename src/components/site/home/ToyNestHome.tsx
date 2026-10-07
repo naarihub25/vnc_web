@@ -1,3 +1,4 @@
+import { AppFooter } from "../AppFooter";
 import { StoreSearch } from "../StoreSearch";
 import Badge from "@mui/material/Badge";
 import { useCart } from "@/hooks/useCart";
@@ -10,12 +11,9 @@ import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined
 import MenuIcon from "@mui/icons-material/Menu";
 import ShoppingCartOutlinedIcon from "@mui/icons-material/ShoppingCartOutlined";
 import Box from "@mui/material/Box";
-import Button from "@mui/material/Button";
 import Container from "@mui/material/Container";
 import Grid from "@mui/material/Grid";
 import IconButton from "@mui/material/IconButton";
-import InputBase from "@mui/material/InputBase";
-import Link from "@mui/material/Link";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { CategorySelection } from "./CategorySelection";
@@ -137,136 +135,7 @@ export function TrustStrip({ items = trustCards }: { items?: TrustCardData[] }) 
 }
 
 export function ToyNestFooter() {
-  const groups = [
-    {
-      title: "Shop",
-      links: [
-        "All Toys",
-        "Soft Toys",
-        "Educational Toys",
-        "Arts & Crafts",
-        "Building Blocks",
-        "Outdoor Play",
-        "Gift Hampers",
-        "Offers",
-      ],
-    },
-    {
-      title: "Help",
-      links: [
-        "Track Order",
-        "Returns & Refunds",
-        "Shipping Info",
-        "FAQs",
-        "Size Guide",
-        "Contact Us",
-      ],
-    },
-    {
-      title: "About Us",
-      links: ["Our Story", "Careers", "Blog", "Press", "Sustainability"],
-    },
-  ];
-
-  return (
-    <Box
-      component="footer"
-      sx={{
-        bgcolor: "#073b3f",
-        color: "common.white",
-        mt: { xs: 4, md: 6 },
-        pb: { xs: 5, md: 8 },
-        pt: { xs: 5, md: 8 },
-      }}
-    >
-      <Container maxWidth="xl">
-        <Grid container spacing={{ xs: 4, md: 6 }}>
-          <Grid size={{ xs: 12, md: 3 }}>
-            <BrandLogo size={128} />
-            <Typography
-              sx={{ color: "#d4dfd0", fontSize: 14, maxWidth: 300, mt: 2 }}
-            >
-              Bringing joy, learning and imagination to kids with the best toys
-              & gifts.
-            </Typography>
-          </Grid>
-
-          {groups.map((group) => (
-            <Grid key={group.title} size={{ xs: 6, sm: 4, md: 2 }}>
-              <Typography sx={{ fontSize: 17, fontWeight: 800, mb: 2.5 }}>
-                {group.title}
-              </Typography>
-              <Stack spacing={1.5}>
-                {group.links.map((link) => (
-                  <Link
-                    color="inherit"
-                    href="#"
-                    key={link}
-                    sx={{ color: "#d4dfd0", fontSize: 13 }}
-                    underline="hover"
-                  >
-                    {link}
-                  </Link>
-                ))}
-              </Stack>
-            </Grid>
-          ))}
-
-          <Grid size={{ xs: 12, md: 3 }}>
-            <Typography sx={{ fontSize: 17, fontWeight: 800, mb: 2.5 }}>
-              Contact
-            </Typography>
-            <Stack spacing={1.5} sx={{ color: "#d4dfd0", fontSize: 13 }}>
-              <Box>+91 80 1234 5678</Box>
-              <Box>hello@toynest.com</Box>
-              <Box>Bangalore, Karnataka</Box>
-            </Stack>
-
-            <Typography sx={{ fontSize: 17, fontWeight: 800, mt: 5 }}>
-              Newsletter
-            </Typography>
-            <Typography sx={{ color: "#d4dfd0", fontSize: 12, mt: 1.5 }}>
-              Subscribe for updates & offers
-            </Typography>
-            <Box
-              component="form"
-              sx={{
-                alignItems: "center",
-                bgcolor: "common.white",
-                borderRadius: 1.75,
-                display: "flex",
-                mt: 2,
-                overflow: "hidden",
-              }}
-            >
-              <InputBase
-                aria-label="Email address"
-                placeholder="Enter your email"
-                sx={{ color: muted, flex: 1, fontSize: 12, px: 1.75 }}
-              />
-              <Button sx={{ borderRadius: 0, minHeight: 44 }} variant="contained">
-                Subscribe
-              </Button>
-            </Box>
-          </Grid>
-        </Grid>
-
-        <Stack
-          direction={{ xs: "column", md: "row" }}
-          spacing={2}
-          sx={{
-            color: "#bbcbb9",
-            fontSize: 12,
-            justifyContent: "space-between",
-            mt: { xs: 8, md: 16 },
-          }}
-        >
-          <Box>© 2026 VnU — Vibrant n Unique. All rights reserved.</Box>
-          <Box>We accept VISA Mastercard UPI Paytm</Box>
-        </Stack>
-      </Container>
-    </Box>
-  );
+  return <AppFooter />;
 }
 
 export function ToyNestHome() {

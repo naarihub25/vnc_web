@@ -48,7 +48,7 @@ export function ProductDetailsPage({ wholesale = false }: { wholesale?: boolean 
   return <>
     {wholesale ? <StoreHeader variant="wholesale" /> : <ToyNestHeader />}
     {identifier ? <ProductDetails key={`${wholesale}:${identifier}`} identifier={identifier} wholesale={wholesale} /> : <Container sx={{ py: 6 }}>Loading product...</Container>}
-    {wholesale ? <AppFooter /> : <ToyNestFooter />}
+    {wholesale ? <AppFooter wholesale /> : <ToyNestFooter />}
   </>;
 }
 function ProductDetails({ identifier, wholesale }: { identifier: string; wholesale: boolean }) {

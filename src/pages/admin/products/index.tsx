@@ -69,6 +69,8 @@ export default function AdminProducts() {
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploading, setUploading] = useState(false);
   const submitting = useRef(false);
   const closeModal = () => { if (!submitting.current) setOpen(false); };
 
@@ -137,9 +139,10 @@ export default function AdminProducts() {
     [images[index], images[index + delta]] = [images[index + delta], images[index]];
     return { ...current, images };
   });
-  const openCreate = () => { setEditing(null); setForm(emptyForm()); setError(""); setSuccess(""); setOpen(true); };
+  const openCreate = () => { setEditing(null); setSelectedFiles([]); setForm(emptyForm()); setError(""); setSuccess(""); setOpen(true); };
   const openEdit = (product: Product) => {
     setEditing(product);
+    setSelectedFiles([]);
     setForm({
       ...product,
       hsnCode: product.hsnCode ?? "",
@@ -166,7 +169,8 @@ export default function AdminProducts() {
     const productType = form.productType.trim();
     const description = form.description.trim();
     const currency = form.currency.trim().toUpperCase();
-    const images = form.images.map((image) => ({ url: image.url.trim(), alt: image.alt.trim() }));
+    const images = form.images.map((image) => ({ url: image.url.trim(), alt: image.alt.trim() }))
+      .filter((image) => image.url || image.alt);
     let message = "";
     if (!name || name.length > 200) message = "Enter a product name of up to 200 characters.";
     else if (slug.length > 240 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) message = "Enter a slug of up to 240 characters using lowercase letters, numbers and single hyphens.";
@@ -178,7 +182,7 @@ export default function AdminProducts() {
     else if (!categories.some((c) => c._id === form.category)) message = "Select one category or subcategory.";
     else if (!productType || productType.length > 100) message = "Enter a product type of up to 100 characters.";
     else if (description.length > 10000) message = "Description must be 10,000 characters or fewer.";
-    else if (images.length < 1 || images.length > 5 || images.some((i) => !validUrl(i.url) || i.url.length > 2048 || i.alt.length > 200)) message = "Add 1–5 HTTP/HTTPS image URLs (up to 2,048 characters each), with alt text up to 200 characters.";
+    else if (images.length + selectedFiles.length < 1 || images.length + selectedFiles.length > 5 || images.some((i) => !validUrl(i.url) || i.url.length > 2048 || i.alt.length > 200)) message = "Add 1–5 images using uploads or HTTP/HTTPS URLs (up to 2,048 characters each), with alt text up to 200 characters.";
     else if (!/^[A-Z]{3}$/.test(currency)) message = "Currency must be a three-letter code, such as INR.";
     else if (!form.isRetail && !form.isWholesale) message = "Enable retail, wholesale, or both.";
     else if ((form.isRetail || form.retailPrice.trim() !== "") && !validPrice(form.retailPrice)) message = "Retail price must be between 0 and 1,000,000,000 with at most two decimal places.";
@@ -199,6 +203,30 @@ export default function AdminProducts() {
     submitting.current = true;
     setSaving(true);
     try {
+      if (selectedFiles.length) {
+        setUploading(true);
+        const uploadForm = new FormData();
+        for (const file of selectedFiles) uploadForm.append("files", file);
+        const uploadResponse = await fetch(`${productsUrl}/image-upload-url`, {
+          method: "POST", credentials: "include", body: uploadForm,
+        });
+        const uploadResult = await uploadResponse.json().catch(() => null);
+        const upload = uploadResult?.data ?? uploadResult;
+        if (!uploadResponse.ok || uploadResult?.flag === false) {
+          setError(typeof uploadResult?.error === "string" ? uploadResult.error : "Unable to upload images. Please try again.");
+          return;
+        }
+        if (!Array.isArray(upload?.images) || upload.images.length !== selectedFiles.length ||
+          !upload.images.every((image: ProductImage) => image && typeof image.url === "string" && validUrl(image.url) &&
+            image.url.length <= 2048 && typeof image.alt === "string" && image.alt.length <= 200)) {
+          setError("The server returned an unexpected image upload response. Please try again.");
+          return;
+        }
+        product.images = [...images, ...upload.images.map((image: ProductImage) => ({ url: image.url, alt: image.alt }))];
+        update("images", product.images);
+        setSelectedFiles([]);
+        setUploading(false);
+      }
       const response = await fetch(editing ? `${productsUrl}/${encodeURIComponent(editing._id)}` : productsUrl, {
         method: editing ? "PATCH" : "POST", credentials: "include", headers: { "Content-Type": "application/json" },
         body: JSON.stringify(product),
@@ -220,6 +248,7 @@ export default function AdminProducts() {
     } finally {
       submitting.current = false;
       setSaving(false);
+      setUploading(false);
     }
   };
 
@@ -308,7 +337,7 @@ export default function AdminProducts() {
       </Paper>
     </AdminLayout>
     <AppDialog open={open} onClose={closeModal} title={editing ? "Edit Product" : "Add Product"} maxWidth="md"
-      actions={<><Button disabled={saving} onClick={closeModal}>Cancel</Button><Button disabled={saving} type="submit" form="product-form" variant="contained">{saving ? "Saving..." : "Save"}</Button></>}>
+      actions={<><Button disabled={saving} onClick={closeModal}>Cancel</Button><Button disabled={saving} type="submit" form="product-form" variant="contained">{uploading ? "Uploading images..." : saving ? "Saving..." : "Save"}</Button></>}>
       <Box component="fieldset" disabled={saving} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
       <Stack component="form" id="product-form" onSubmit={save} spacing={3}>
         {error ? <Alert severity="error">{error}</Alert> : null}
@@ -330,11 +359,29 @@ export default function AdminProducts() {
         </Grid>
         <Stack spacing={2}>
           <Typography variant="h6">Product images</Typography>
-          <Typography variant="body2" color="text.secondary">Add 1–5 image URLs. The first image is the main product image.</Typography>
+          <Typography variant="body2" color="text.secondary">Upload or enter URLs for 1–5 images. The first image is the main product image. New uploads are added after existing images.</Typography>
+          <AppTextField type="file" label="Upload product images" slotProps={{ inputLabel: { shrink: true }, htmlInput: {
+            multiple: true, accept: "image/png,image/jpeg,image/webp,image/gif",
+          } }} helperText="PNG, JPEG, WebP or GIF, up to 5 MB each. Images upload when you save the product."
+            onChange={(event) => {
+              const files = Array.from((event.target as HTMLInputElement).files ?? []);
+              event.target.value = "";
+              if (!files.length) return;
+              const existingCount = form.images.filter((image) => image.url.trim() || image.alt.trim()).length;
+              if (existingCount + selectedFiles.length + files.length > 5) { setError("A product can have up to 5 images, including existing images."); return; }
+              if (files.some((file) => !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type) || !file.size || file.size > 5 * 1024 * 1024)) {
+                setError("Choose PNG, JPEG, WebP or GIF images up to 5 MB each."); return;
+              }
+              setError(""); setSelectedFiles((current) => [...current, ...files]);
+            }} />
+          {selectedFiles.map((file, index) => <Stack key={index} direction="row" spacing={2} sx={{ alignItems: "center" }}>
+            <Typography sx={{ overflowWrap: "anywhere" }}>{file.name}</Typography>
+            <Button color="error" onClick={() => setSelectedFiles((current) => current.filter((_, i) => i !== index))}>Remove</Button>
+          </Stack>)}
           {form.images.map((image, index) => <Paper key={index} variant="outlined" sx={{ p: 2 }}>
             <Stack spacing={2}>
               <Typography variant="subtitle2">{index === 0 ? "Main image" : `Image ${index + 1}`}</Typography>
-              <AppTextField label="Image URL" required value={image.url} slotProps={{ htmlInput: { maxLength: 2048 } }}
+              <AppTextField label="Image URL" value={image.url} slotProps={{ htmlInput: { maxLength: 2048 } }}
                 helperText="Use an HTTP or HTTPS URL." onChange={(e) => updateImage(index, "url", e.target.value)} />
               <AppTextField label="Alt text" value={image.alt} slotProps={{ htmlInput: { maxLength: 200 } }} onChange={(e) => updateImage(index, "alt", e.target.value)} />
               {validUrl(image.url) ? <Box component="img" src={image.url} alt={image.alt || `Product image ${index + 1}`} sx={{ width: 100, height: 100, objectFit: "cover", borderRadius: 1 }} /> : null}
@@ -345,7 +392,7 @@ export default function AdminProducts() {
               </Stack>
             </Stack>
           </Paper>)}
-          <Button variant="outlined" disabled={form.images.length >= 5} onClick={() => update("images", [...form.images, { url: "", alt: "" }])}>Add image ({form.images.length}/5)</Button>
+          <Button variant="outlined" disabled={form.images.length + selectedFiles.length >= 5} onClick={() => update("images", [...form.images, { url: "", alt: "" }])}>Add image ({form.images.length}/5)</Button>
         </Stack>
         <Typography variant="h6">Tax details</Typography>
         <Grid container spacing={2}>

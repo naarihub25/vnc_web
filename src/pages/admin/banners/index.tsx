@@ -66,6 +66,7 @@ export default function AdminBanners() {
   const [loading, setLoading] = useState(true);
   const [listError, setListError] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const submitting = useRef(false);
@@ -110,15 +111,14 @@ export default function AdminBanners() {
     event.preventDefault();
     if (submitting.current) return;
     setError("");
-    if (form.images.some((image) => image.file)) { setError("Replace selected files with HTTP/HTTPS image URLs before saving. File uploads are not connected yet."); return; }
     const sortOrder = Number(form.sortOrder);
     if (!form.sortOrder.trim() || !Number.isSafeInteger(sortOrder) || sortOrder < 0) { setError("Sort order must be a non-negative whole number."); return; }
     const title = form.title.trim();
     const redirectUrl = form.redirectUrl.trim();
     if (!title) { setError("Enter a banner title."); return; }
     if (!validDestination(redirectUrl)) { setError("Enter a site path such as /products, or a full HTTP/HTTPS URL."); return; }
-    if (form.images.length !== 1 || !isHttpUrl(form.images[0].url.trim())) {
-      setError("Provide exactly one banner image with a valid HTTP/HTTPS URL."); return;
+    if (form.images.length !== 1 || (!form.images[0].file && !isHttpUrl(form.images[0].url.trim()))) {
+      setError("Upload one banner image or provide a valid HTTP/HTTPS URL."); return;
     }
     const banner = { title, redirectUrl, sortOrder,
       position: form.position, isActive: form.isActive,
@@ -127,6 +127,37 @@ export default function AdminBanners() {
     submitting.current = true;
     setSaving(true);
     try {
+      const image = form.images[0];
+      if (image.file) {
+        setUploading(true);
+        const uploadForm = new FormData();
+        uploadForm.append("files", image.file);
+        let uploadResponse: Response;
+        try {
+          uploadResponse = await fetch(`${bannersUrl}/image-upload-url`, {
+            method: "POST", credentials: "include", body: uploadForm,
+          });
+        } catch {
+          setError("Unable to upload the banner image. Check your connection and try again.");
+          return;
+        }
+        const uploadResult = await uploadResponse.json().catch(() => null);
+        const upload = uploadResult?.data ?? uploadResult;
+        if (!uploadResponse.ok || uploadResult?.flag === false) {
+          setError(typeof uploadResult?.error === "string" ? uploadResult.error : "Unable to upload the banner image. Please try again.");
+          return;
+        }
+        if (!Array.isArray(upload?.images) || upload.images.length !== 1 ||
+          typeof upload.images[0]?.url !== "string" || !isHttpUrl(upload.images[0].url) ||
+          typeof upload.images[0]?.alt !== "string") {
+          setError("The server returned an unexpected image upload response. Please try again.");
+          return;
+        }
+        const uploadedImage = { url: upload.images[0].url, alt: image.alt.trim() || upload.images[0].alt };
+        banner.images = [uploadedImage];
+        updateImage(image.id, { ...uploadedImage, file: undefined });
+        setUploading(false);
+      }
       const response = await fetch(editing ? `${bannersUrl}/${encodeURIComponent(editing._id)}` : bannersUrl, {
         method: editing ? "PATCH" : "POST", credentials: "include",
         headers: { "Content-Type": "application/json" }, body: JSON.stringify(banner),
@@ -143,7 +174,7 @@ export default function AdminBanners() {
       setRefresh((value) => value + 1);
     } catch {
       setError("Unable to confirm banner changes. Check the list before retrying.");
-    } finally { submitting.current = false; setSaving(false); }
+    } finally { submitting.current = false; setSaving(false); setUploading(false); }
   };
   const closeDelete = () => { if (!submitting.current) { setDeleteTarget(null); setDeleteError(""); } };
   const deleteBanner = async () => {
@@ -198,7 +229,7 @@ export default function AdminBanners() {
       </Paper>
     </AdminLayout>
     <AppDialog open={open} onClose={closeModal} title={editing ? "Edit Banner" : "Add Banner"} maxWidth="md"
-      actions={<><Button disabled={saving} onClick={closeModal}>Cancel</Button><Button disabled={saving} type="submit" form="banner-form" variant="contained">{saving ? "Saving..." : "Save"}</Button></>}>
+      actions={<><Button disabled={saving} onClick={closeModal}>Cancel</Button><Button disabled={saving} type="submit" form="banner-form" variant="contained">{uploading ? "Uploading image..." : saving ? "Saving..." : "Save"}</Button></>}>
       <Box component="fieldset" disabled={saving} sx={{ border: 0, p: 0, m: 0, minWidth: 0 }}>
       <Stack component="form" id="banner-form" onSubmit={save} spacing={2}>
         {error ? <Alert severity="error">{error}</Alert> : null}
@@ -227,10 +258,10 @@ export default function AdminBanners() {
                 <input hidden type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(e) => {
                   const file = e.target.files?.[0]; e.target.value = "";
                   if (!file) return;
-                  if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+                  if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type) || !file.size || file.size > 5 * 1024 * 1024) {
                     setError("Choose a PNG, JPEG, WebP or GIF image up to 5 MB."); return;
                   }
-                  setError(""); updateImage(image.id, { file, url: "", alt: "" });
+                  setError(""); updateImage(image.id, { file, url: "" });
                 }} />
               </Button>
               <Button color="error" onClick={() => update("images", [newImage()])}>Remove</Button>
@@ -239,7 +270,7 @@ export default function AdminBanners() {
             <BannerPreview image={image} title={form.title} />
           </Stack>
         </Paper>)}
-        <Typography variant="caption" color="text.secondary">Files preview locally. Use image URLs to save banners; permanent file uploads need an upload endpoint.</Typography>
+        <Typography variant="caption" color="text.secondary">Choose a PNG, JPEG, WebP or GIF image up to 5 MB. The image uploads when you save the banner.</Typography>
       </Stack>
       </Box>
     </AppDialog>

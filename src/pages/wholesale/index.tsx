@@ -76,7 +76,7 @@ export default function WholesaleHome() {
           </Grid>
         </Container>
       </Box>
-      <AppFooter />
+      <AppFooter wholesale />
     </>
   );
 }

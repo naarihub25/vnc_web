@@ -84,3 +84,17 @@ npm run lint
 
 This project does not include backend services, API routes, MongoDB models, seed
 scripts, or server-side data persistence.
+
+## Guest order tracking
+
+The footer opens `/track-order`. Guests request an email OTP with
+`POST /api/orders/tracking/request-OTP`, then submit `{ email, otp, page, limit }`
+to `POST /api/orders/by-email`. Verification details and order results stay in
+memory and are cleared on navigation/reload. Development OTPs returned by the
+API are neither displayed nor auto-filled.
+
+The current backend consumes each OTP after a successful lookup. Pagination
+therefore sends a fresh OTP and asks the guest to verify before loading the
+requested page (20 orders per page). Order details open from the list without
+another lookup. Eligible orders download a PDF from
+`GET /api/orders/:id/invoice`.

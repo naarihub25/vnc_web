@@ -118,6 +118,6 @@ export function CategoryProductsPage({ wholesale = false }: { wholesale?: boolea
           </>}
       </Container>
     </Box>
-    {wholesale ? <AppFooter /> : <ToyNestFooter />}
+    {wholesale ? <AppFooter wholesale /> : <ToyNestFooter />}
   </>;
 }
